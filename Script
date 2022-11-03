@@ -1,0 +1,50 @@
+####Step 1: Get correct taxonomic strings from WoRMS
+##Use custom script from Joe Sevigny:
+python3 correct_ncbi_based_on_worms.py
+
+
+
+####Step 2: Pull IDs from sequence file
+##For a standard SILVA file
+Grep Nematoda seq_file_name.fasta > seq_ID_list.fasta
+#In some newer versions of SILVA, the only available taxonomy ends at BCP_clade, before nematoda. If so extracting nematodes will happen in step 3
+###Or if it is a custom sequence list
+Grep  ‘>’  seq_file_name.fasta | -F”_” ‘{print F2}’ seq_ID_list.fasta
+
+###Obtain genus nams list
+Awk -F”;” ‘{print $(NF-2), $(NF-1)}’ seq_ID_list.fasta | sed ’s/__//g’ >genus_list.fasta
+
+
+####Step 3: replace names and sort for nematodes
+python3 taxonToFullTaxonomy-revised.py ./genus_list.fasta >correct_taxonomic_strings.tsv
+###you will get a list of corrected taxonomic names matched with the accession numbers
+####Make sure you only have nematodes
+Grep Nematoda correct_taxonomic_strings.tsv >nematode_correct_taxonomic_strings.tsv
+##Check for errors manually in excel. 
+
+
+####Step 4: replace taxonomic strings in sequence fasta
+##cut string to include taxonomy only
+cut -f6- v138_genera_full_taxonomy_expanded.tsv >v138_genera_full_taxonomy_expanded_sub.tsv
+#paste strings to accession and genus/species names from original database
+paste v138_genera_full_taxonomy_expanded_sub.tsv v138_genera_full_taxonomy_expanded_genus_sp_fields.list 'sed 's/\t/:/g' >Final_names_list_v138.tsv
+ll
+while read -r line; do accessionid=$(cut -f1 <(echo "$line")| sed 's/>//'); toreplace=$(grep -w "$accessionid" silva.fasta); sed -i "s|$toreplace.*|$line|" silva.fasta; done <Final_names_list_v138_with_accession.tsv 
+
+###Make trees for dereplication
+#Align and tree sequences by order. Example:
+grep "Enoplida" Final_all_silva_db.fasta >family_leve_alignments/Enoplida_names.tsv
+seqtk subseq Enoplida_names.tsv Final_all_silva_db.fasta >Enoplida_seqs.txt
+nohup muscle -in Enoplida_seqs.txt -out Aligned_Enoplida.fasta &
+FastTree -nt -gtr Aligned_Enoplida.fasta >Enoplida_tree.tre
+##Dereplication script
+/home/genome/egendron/bash_scripts/extract_replicates_loop.sh Enoplida_tree.tre Enoplida_derep.txt
+#extract list and review manually. Remove any exact matches (i.e., identical sequences, exact same names.)
+#each tree was additionally assessed for problematic sequence placement (eg. Aporcellaimus sp. in the Rhabditida tree)
+
+
+### Add your own sequences
+###You can either use the fasta file as a text file and manually copy paste your seqeunces in
+###which is recommended for adding a small number of sequences as it will allow for a quick and efficient manual check for format
+#Or if you have a large number of sequences use the cat function as below:
+cat 18SNemaBase.fasta your_sequence_file.fasta >Final_file_18SNema_plus_custom_sequences.fasta
