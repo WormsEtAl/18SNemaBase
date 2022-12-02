@@ -41,7 +41,14 @@ Match the correct taxonomic string to sequence based on accession number
 
 ```
 paste v138_genera_full_taxonomy_expanded_sub.tsv v138_genera_full_taxonomy_expanded_genus_sp_fields.list 'sed 's/\t/:/g' >Final_names_list_v138.fasta
-while read -r line; do accessionid=$(cut -f1 <(echo "$line")| sed 's/>//'); toreplace=$(grep -w "$accessionid" silva.fasta); sed -i "s|$toreplace.*|$line|" silva.fasta; done <Final_names_list_v138_with_accession.fasta 
+while read -r line; do accessionid=$(cut -f1 <(echo "$line")| sed 's/>//'); toreplace=$(grep -w "$accessionid" silva.fasta); sed -i "s|$toreplace.*|$line|" silva.fasta; done <Final_v138_for_NemaBase.fasta 
+```
+
+Repeat all steps with SILVA v111
+Concatenate both versions
+
+```
+cat Final_v138_for_NemaBase.fasta Final_v111_for_NemaBase.fasta >Final_all_silva_db.fasta >18SNemaBase.fasta
 ```
 
 ## Quality Assurance
@@ -52,7 +59,7 @@ Dereplication can be done with the alignment. We choose to use trees as they pro
 Isolate Enoplida sequences with [seqtk](https://github.com/lh3/seqtk). 
 
 ```
-grep "Enoplida" Final_all_silva_db.fasta >Enoplida_names.fasta
+grep "Enoplida" 18SNemaBase.fasta >Enoplida_names.fasta
 seqtk subseq Enoplida_names.fasta Final_all_silva_db.fasta >Enoplida_seqs.txt
 ```
 
@@ -62,7 +69,32 @@ Alignment with [Muscle](https://2018-03-06-ibioic.readthedocs.io/en/latest/insta
 muscle -in Enoplida_seqs.txt -out Aligned_Enoplida.fasta
 ```
 
-Make a phylogenetic tree with FastTree
+Make a phylogenetic tree with [FastTree](https://www.metagenomics.wiki/tools/phylogenetic-tree/construction/fasttree)
+
+```
+FastTree -nt -gtr Aligned_Enoplida.fasta >Enoplida_tree.tre
+```
+
+Custom dereplication script ([extract_replicates_loop.sh](https://github.com/WormsEtAl/18SNemaBase/blob/main/extract_replicates_loop.sh))
+
+```
+extract_replicates_loop.sh Enoplida_tree.tre Enoplida_derep.fasta
+```
+
+Review output and remove sequences that are exact replicate (i.e. same sequence and same species or subspecies name).
+Review tree for sequences that may be out of place. Check all misplaced sequences against 18S-NemaBase, SILVA, and NCBI Blast to ensure these are erroneous.
+Remove replicates and erroneos sequence
+
+## Customize the database
+The final database is supplied as a fasta file that can be manually added to in most text editors. 
+If prefered the file can also be concatenated with custom sequence file. Ex:
+
+```
+cat 18SNemaBase.fasta Sanger-sequenced_full_18S.fasta >Final_all_silva_db.fasta >18SNemaBase-supplemented.fasta
+```
+
+
+
 
 
 
