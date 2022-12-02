@@ -44,7 +44,7 @@ paste v138_genera_full_taxonomy_expanded_sub.tsv v138_genera_full_taxonomy_expan
 while read -r line; do accessionid=$(cut -f1 <(echo "$line")| sed 's/>//'); toreplace=$(grep -w "$accessionid" silva.fasta); sed -i "s|$toreplace.*|$line|" silva.fasta; done <Final_v138_for_NemaBase.fasta 
 ```
 
-Repeat all steps with SILVA v111
+Repeat all steps with SILVA v111.
 Concatenate both versions
 
 ```
